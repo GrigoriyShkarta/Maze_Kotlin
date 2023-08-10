@@ -1,22 +1,29 @@
 import java.util.*
 import kotlin.random.Random
 
+data class Cell(val row: Int, val col: Int)
+
 class Maze (
     private  val width: Int,
     private val height: Int
 ) {
     private companion object {
+        private const val NOTHING = 0
         private const val ROAD = 1
         private const val WALL = 2
         private const val SHORT_PATH = 3
-        private const val PROBABILITY = 0.6
+        private const val USER_PATH = 4
+        private const val USER_LOCATION = 5
+        private const val PROBABILITY = 0.5
     }
 
-    private val maze = Array(height) { Array(width) { 0 } }
+    private val maze = Array(height) { Array(width) { NOTHING } }
     private var currentCell = Cell(0, 0)
+    private var currentUserCell = Cell(0, 0)
     private var prevCell: Cell? = null
     private var neighborsWithDirections = getNeighborsWithDirections(currentCell.row, currentCell.col, false)
     private var checkZero = false
+    var counter = 1
 
     fun generate() {
         build(0, 0, ROAD)
@@ -42,8 +49,8 @@ class Maze (
                     val isHorizontalDirection = randomDirection == "Right" || randomDirection == "Left"
                     val horizontalNeighbor = if (isHorizontalDirection) allNeighborsWithDirections["Up"] else allNeighborsWithDirections["Left"]
                     val verticalNeighbor = if (isHorizontalDirection) allNeighborsWithDirections["Down"] else allNeighborsWithDirections["Right"]
-                    val isHorizontalNeighborRoad = horizontalNeighbor?.let { (row, col) -> maze[row][col] == 1 } ?: false
-                    val isVerticalNeighborRoad = verticalNeighbor?.let { (row, col) -> maze[row][col] == 1 } ?: false
+                    val isHorizontalNeighborRoad = horizontalNeighbor?.let { (row, col) -> maze[row][col] == ROAD } ?: false
+                    val isVerticalNeighborRoad = verticalNeighbor?.let { (row, col) -> maze[row][col] == ROAD } ?: false
 
                     if (isHorizontalNeighborRoad || isVerticalNeighborRoad || allNeighborsWithDirections.isEmpty()) {
                         build(currentCell.row, currentCell.col, WALL)
@@ -59,7 +66,7 @@ class Maze (
                 val waysList = mutableListOf<Pair<Int, Int>>()
                 for (i in 0..<height) {
                     for (j in 0..<width) {
-                        if (maze[i][j] == 1) {
+                        if (maze[i][j] == ROAD) {
                             waysList.add(Pair(i, j))
                         }
                     }
@@ -68,10 +75,10 @@ class Maze (
                 val filteredWays = waysList.filter { (i, j) ->
                     listOf(-1, 1).any { di ->
                         val ni = i + di
-                        ni in 0..<height && maze[ni][j] == 0
+                        ni in 0..<height && maze[ni][j] == NOTHING
                     } || listOf(-1, 1).any { dj ->
                         val nj = j + dj
-                        nj in 0..<width && maze[i][nj] == 0
+                        nj in 0..<width && maze[i][nj] == NOTHING
                     }
                 }
 
@@ -83,6 +90,7 @@ class Maze (
             }
         }
         checkZeroCell()
+        build(0, 0, USER_LOCATION)
     }
 
     private fun checkZeroCell() {
@@ -91,7 +99,7 @@ class Maze (
 
         for (i in maze.indices) {
             for (j in maze[i].indices) {
-                if (maze[i][j] == 0) {
+                if (maze[i][j] == NOTHING) {
                     emptyCells.add(Cell(i, j))
                 }
             }
@@ -113,12 +121,16 @@ class Maze (
         maze[x][y] = action
     }
 
+    private fun isValidCell(row: Int, col: Int): Boolean {
+        return row in 0..<height && col in 0..<width
+    }
+
     private fun getNeighborsWithDirections(x: Int, y: Int, includeWalls: Boolean): Map<String, Cell> {
         val neighbors = mutableMapOf<String, Cell>()
-        if (x - 1 >= 0 && (includeWalls || maze[x - 1][y] == 0)) neighbors["Up"] = Cell(x - 1, y)
-        if (x + 1 < maze.size && (includeWalls || maze[x + 1][y] == 0)) neighbors["Down"] = Cell(x + 1, y)
-        if (y - 1 >= 0 && (includeWalls || maze[x][y - 1] == 0)) neighbors["Left"] = Cell(x, y - 1)
-        if (y + 1 < maze[0].size && (includeWalls || maze[x][y + 1] == 0)) neighbors["Right"] = Cell(x, y + 1)
+        if (x - 1 >= 0 && (includeWalls || maze[x - 1][y] == NOTHING)) neighbors["Up"] = Cell(x - 1, y)
+        if (x + 1 < maze.size && (includeWalls || maze[x + 1][y] == NOTHING)) neighbors["Down"] = Cell(x + 1, y)
+        if (y - 1 >= 0 && (includeWalls || maze[x][y - 1] == NOTHING)) neighbors["Left"] = Cell(x, y - 1)
+        if (y + 1 < maze[0].size && (includeWalls || maze[x][y + 1] == NOTHING)) neighbors["Right"] = Cell(x, y + 1)
         return neighbors
     }
 
@@ -126,14 +138,16 @@ class Maze (
         for (i in -1..<height + 1) {
             for (j in -1..<width + 1) {
                 val cellSymbol = when {
-                    i == 0 && j == -1 -> " *" // Start point
-                    i == height && j == width - 1 -> " *" // Finish point
+                    i == 0 && j == -1 -> "\u001B[31m →\u001B[0m" // Start point
+                    i == height && j == width - 1 -> "\u001B[31m ↓\u001B[0m" // Finish point
                     i in 0..<height && j in 0..<width -> when (maze[i][j]) {
-                        1 -> "  "
-                        3 -> " *"
-                        else -> "░░"
+                        ROAD -> "  "
+                        SHORT_PATH -> "\u001B[33m *\u001B[0m"
+                        USER_PATH -> "\u001B[33m *\u001B[0m"
+                        USER_LOCATION -> "\u001B[34m *\u001B[0m"
+                        else -> "\u001B[35m░░\u001B[0m"
                     }
-                    else -> "░░"
+                    else -> "\u001B[35m░░\u001B[0m"
                 }
                 print(cellSymbol)
             }
@@ -141,7 +155,15 @@ class Maze (
         }
     }
 
-    fun shortestPath(): List<Cell>? {
+    fun findShortestPath(): List<Cell>? {
+        for (i in 0..<height) {
+            for (j in 0..<width) {
+                if (maze[i][j] == USER_PATH || maze[i][j] == USER_LOCATION) {
+                    build(i, j, ROAD)
+                }
+            }
+        }
+
         val rows = maze.size
         val cols = maze[0].size
 
@@ -159,6 +181,11 @@ class Maze (
                 for (cell in path + current) {
                     build(cell.row, cell.col, SHORT_PATH)
                 }
+                build(height - 1, width - 1, USER_LOCATION)
+                counter = path.size
+                println()
+                print("WELL DONE!!! YOU FINISHED!!! YOUR SCORE $counter")
+                println()
                 return path + current
             }
 
@@ -168,7 +195,10 @@ class Maze (
                 val newCol = current.col + neighbor.col
                 val newCell = Cell(newRow, newCol)
 
-                if (newRow in 0..<rows && newCol in 0..<cols && maze[newRow][newCol] == 1 && newCell !in visited) {
+                if (newRow in 0..<rows && newCol in 0..<cols
+                    && (maze[newRow][newCol] == ROAD || maze[newRow][newCol] == USER_PATH || maze[newRow][newCol] == USER_LOCATION)
+                    && newCell !in visited)
+                {
                     queue.add(Pair(newCell, path + current))
                     visited.add(newCell)
                 }
@@ -178,17 +208,25 @@ class Maze (
         return null
     }
 
-    fun printHello() {
-        print("""
-            |||||| () ||      || ||||||      ||||||   ||        ||||    ||        ||    ||  ||        ||         |||||||    ||    ||      ||  ||||||
-              ||      ||||  |||| ||            ||   ||  ||      ||  ||  ||      ||  ||  ||  ||      ||  ||      ||        ||  ||  ||||  ||||  ||
-              ||   || ||  ||  || ||||||        ||   ||  ||      ||||    ||      ||||||    ||        ||||||      |||||||   ||||||  ||  ||  ||  ||||||
-              ||   || ||      || ||            ||   ||  ||      ||      ||      ||  ||    ||        ||  ||      ||    ||  ||  ||  ||      ||  ||
-              ||   || ||      || ||||||        ||     ||        ||      ||||||  ||  ||    ||        ||  ||       ||||||   ||  ||  ||      ||  ||||||
-            """)
+    fun move(x: Int, y: Int) {
+//        if (isValidCell(x, y)) {
+            build(currentUserCell.row, currentUserCell.col, USER_PATH)
+            if (maze[currentUserCell.row + x][currentUserCell.col + y] == ROAD ||
+                maze[currentUserCell.row + x][currentUserCell.col + y] == USER_PATH)
+            {
+                val newRow = currentUserCell.row + x
+                val newCol = currentUserCell.col + y
+                currentUserCell = Cell(newRow, newCol)
+                build(currentUserCell.row, currentUserCell.col, USER_LOCATION)
+                counter++
+                println()
+                print("SCORE $counter")
+                println()
+            }
+        }
 
-    }
+//    }
 }
 
-data class Cell(val row: Int, val col: Int)
+
 
