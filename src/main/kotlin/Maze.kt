@@ -19,13 +19,13 @@ class Maze (
 
     private val maze = Array(height) { Array(width) { NOTHING } }
     private var currentCell = Cell(0, 0)
-    private var currentUserCell = Cell(0, 0)
     private var prevCell: Cell? = null
     private var neighborsWithDirections = getNeighborsWithDirections(currentCell.row, currentCell.col, false)
     private var checkZero = false
-    var counter = 1
+    private var currentUserCell = Cell(0, 0)
+    private var score = 1
 
-    fun generate() {
+    private fun generate() {
         build(0, 0, ROAD)
         build(height - 1, width - 1, ROAD)
 
@@ -90,6 +90,10 @@ class Maze (
             }
         }
         checkZeroCell()
+        val res = findShortestPath(false)
+        if (res == null) {
+            generate()
+        }
         build(0, 0, USER_LOCATION)
     }
 
@@ -134,7 +138,7 @@ class Maze (
         return neighbors
     }
 
-    fun printMaze () {
+    private fun printMaze () {
         for (i in -1..<height + 1) {
             for (j in -1..<width + 1) {
                 val cellSymbol = when {
@@ -155,7 +159,7 @@ class Maze (
         }
     }
 
-    fun findShortestPath(): List<Cell>? {
+    private fun findShortestPath(printMaze: Boolean): List<Cell>? {
         for (i in 0..<height) {
             for (j in 0..<width) {
                 if (maze[i][j] == USER_PATH || maze[i][j] == USER_LOCATION) {
@@ -181,11 +185,14 @@ class Maze (
                 for (cell in path + current) {
                     build(cell.row, cell.col, SHORT_PATH)
                 }
-                build(height - 1, width - 1, USER_LOCATION)
-                counter = path.size
-                println()
-                print("WELL DONE!!! YOU FINISHED!!! YOUR SCORE $counter")
-                println()
+                if (printMaze) {
+                    score = path.size
+                    build(height - 1, width - 1, USER_LOCATION)
+                    println()
+                    print("WELL DONE!!! YOU FINISHED!!! YOUR SCORE ${score + 1}")
+                    println()
+                }
+
                 return path + current
             }
 
@@ -208,8 +215,8 @@ class Maze (
         return null
     }
 
-    fun move(x: Int, y: Int) {
-//        if (isValidCell(x, y)) {
+    private fun move(x: Int, y: Int) {
+        if (isValidCell(currentUserCell.row + x, currentUserCell.col + y)) {
             build(currentUserCell.row, currentUserCell.col, USER_PATH)
             if (maze[currentUserCell.row + x][currentUserCell.col + y] == ROAD ||
                 maze[currentUserCell.row + x][currentUserCell.col + y] == USER_PATH)
@@ -218,14 +225,47 @@ class Maze (
                 val newCol = currentUserCell.col + y
                 currentUserCell = Cell(newRow, newCol)
                 build(currentUserCell.row, currentUserCell.col, USER_LOCATION)
-                counter++
+                score++
                 println()
-                print("SCORE $counter")
+                print("SCORE $score")
                 println()
             }
         }
 
-//    }
+    }
+
+    fun play() {
+        val endMaze = Cell(height - 1, width - 1)
+        generate()
+        printMaze()
+
+        while (true) {
+            if (currentUserCell == endMaze) {
+                println()
+                print("WELL DONE!!! YOU FINISHED!!! YOUR SCORE $score")
+                println()
+                break
+            }
+
+            println("Enter 'w' to move up, 's' to move down, 'a' to move left, 'd' to move right, or 'q' to quit:")
+
+            when (readlnOrNull()) {
+                "w" -> move(-1, 0)
+                "s" -> move(1, 0)
+                "a" -> move(0, -1)
+                "d" -> move(0, 1)
+                "cheat" -> {
+                    findShortestPath(true)
+                    printMaze()
+                    break
+                }
+                "q" -> break
+                else -> println("Invalid input. Please enter 'w', 's', 'a', 'd', or 'q'.")
+            }
+
+            printMaze()
+        }
+    }
 }
 
 
