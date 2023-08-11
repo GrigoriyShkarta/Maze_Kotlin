@@ -11,8 +11,7 @@ class Maze (
         private const val NOTHING = 0
         private const val ROAD = 1
         private const val WALL = 2
-        private const val SHORT_PATH = 3
-        private const val USER_PATH = 4
+        private const val USER_PATH = 3
         private const val USER_LOCATION = 5
         private const val PROBABILITY = 0.5
     }
@@ -27,7 +26,6 @@ class Maze (
 
     private fun generate() {
         build(0, 0, ROAD)
-        build(height - 1, width - 1, ROAD)
 
         while (neighborsWithDirections.isNotEmpty()) {
             prevCell = currentCell
@@ -90,11 +88,8 @@ class Maze (
             }
         }
         checkZeroCell()
-        val res = findShortestPath(false)
-        if (res == null) {
-            generate()
-        }
         build(0, 0, USER_LOCATION)
+        build(height - 1, width - 1, ROAD)
     }
 
     private fun checkZeroCell() {
@@ -146,7 +141,6 @@ class Maze (
                     i == height && j == width - 1 -> "\u001B[31m ↓\u001B[0m" // Finish point
                     i in 0..<height && j in 0..<width -> when (maze[i][j]) {
                         ROAD -> "  "
-                        SHORT_PATH -> "\u001B[33m *\u001B[0m"
                         USER_PATH -> "\u001B[33m *\u001B[0m"
                         USER_LOCATION -> "\u001B[34m *\u001B[0m"
                         else -> "\u001B[35m░░\u001B[0m"
@@ -159,7 +153,7 @@ class Maze (
         }
     }
 
-    private fun findShortestPath(printMaze: Boolean): List<Cell>? {
+    private fun findShortestPath(): List<Cell>? {
         for (i in 0..<height) {
             for (j in 0..<width) {
                 if (maze[i][j] == USER_PATH || maze[i][j] == USER_LOCATION) {
@@ -183,15 +177,13 @@ class Maze (
 
             if (current == end) {
                 for (cell in path + current) {
-                    build(cell.row, cell.col, SHORT_PATH)
+                    build(cell.row, cell.col, USER_PATH)
                 }
-                if (printMaze) {
-                    score = path.size
-                    build(height - 1, width - 1, USER_LOCATION)
-                    println()
-                    print("WELL DONE!!! YOU FINISHED!!! YOUR SCORE ${score + 1}")
-                    println()
-                }
+                score = path.size
+                build(height - 1, width - 1, USER_LOCATION)
+                println()
+                print("WELL DONE!!! YOU FINISHED!!! YOUR SCORE ${score + 1}")
+                println()
 
                 return path + current
             }
@@ -255,7 +247,7 @@ class Maze (
                 "a" -> move(0, -1)
                 "d" -> move(0, 1)
                 "cheat" -> {
-                    findShortestPath(true)
+                    findShortestPath()
                     printMaze()
                     break
                 }
