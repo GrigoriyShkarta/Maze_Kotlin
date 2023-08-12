@@ -14,14 +14,19 @@ class Maze (
         private const val USER_PATH = 3
         private const val USER_LOCATION = 5
         private const val PROBABILITY = 0.5
+        private const val UP = "Up"
+        private const val RIGHT = "Right"
+        private const val DOWN = "Down"
+        private const val LEFT = "Left"
     }
 
     private val maze = Array(height) { Array(width) { NOTHING } }
     private var currentCell = Cell(0, 0)
     private var prevCell: Cell? = null
+    private var currentUserCell = Cell(0, 0)
+    private var currentCheckCell = Cell(height - 1, width - 1)
     private var neighborsWithDirections = getNeighborsWithDirections(currentCell.row, currentCell.col, false)
     private var checkZero = false
-    private var currentUserCell = Cell(0, 0)
     private var score = 1
 
     private fun generate() {
@@ -44,9 +49,9 @@ class Maze (
                     currentCell = prevCell as Cell
                     neighborsWithDirections = getNeighborsWithDirections(currentCell.row, currentCell.col, false)
                 } else{
-                    val isHorizontalDirection = randomDirection == "Right" || randomDirection == "Left"
-                    val horizontalNeighbor = if (isHorizontalDirection) allNeighborsWithDirections["Up"] else allNeighborsWithDirections["Left"]
-                    val verticalNeighbor = if (isHorizontalDirection) allNeighborsWithDirections["Down"] else allNeighborsWithDirections["Right"]
+                    val isHorizontalDirection = randomDirection == RIGHT || randomDirection == LEFT
+                    val horizontalNeighbor = if (isHorizontalDirection) allNeighborsWithDirections[UP] else allNeighborsWithDirections[LEFT]
+                    val verticalNeighbor = if (isHorizontalDirection) allNeighborsWithDirections[DOWN] else allNeighborsWithDirections[RIGHT]
                     val isHorizontalNeighborRoad = horizontalNeighbor?.let { (row, col) -> maze[row][col] == ROAD } ?: false
                     val isVerticalNeighborRoad = verticalNeighbor?.let { (row, col) -> maze[row][col] == ROAD } ?: false
 
@@ -87,33 +92,32 @@ class Maze (
                 }
             }
         }
-        checkZeroCell()
+        testMaze(currentCheckCell)
         build(0, 0, USER_LOCATION)
         build(height - 1, width - 1, ROAD)
     }
 
-    private fun checkZeroCell() {
-        val emptyCells = mutableListOf<Cell>()
-        checkZero = true
+    private fun testMaze(currentCheckCell: Cell) {
 
-        for (i in maze.indices) {
-            for (j in maze[i].indices) {
-                if (maze[i][j] == NOTHING) {
-                    emptyCells.add(Cell(i, j))
-                }
+        val upNeighbor = getNeighborsWithDirections(currentCheckCell.row, currentCheckCell.col, true)[UP]
+        val leftNeighbor = getNeighborsWithDirections(currentCheckCell.row, currentCheckCell.col, true)[LEFT]
+
+            if (maze[upNeighbor!!.row][upNeighbor.col] == WALL && maze[leftNeighbor!!.row][leftNeighbor.col] == WALL ||
+                maze[upNeighbor.row][upNeighbor.col] == NOTHING && maze[leftNeighbor!!.row][leftNeighbor.col] == NOTHING ||
+                maze[upNeighbor.row][upNeighbor.col] == WALL && maze[leftNeighbor!!.row][leftNeighbor.col] == NOTHING ||
+                maze[upNeighbor.row][upNeighbor.col] == NOTHING && maze[leftNeighbor!!.row][leftNeighbor.col] == WALL
+                )
+            {
+                println("work")
+                val emptyCells = mutableListOf<Cell>()
+                emptyCells.add(upNeighbor)
+                emptyCells.add(leftNeighbor)
+                val randomIndex = Random.nextInt(0, emptyCells.size)
+                val randomCell = emptyCells[randomIndex]
+                build(randomCell.row, randomCell.col, ROAD)
+                testMaze(randomCell)
             }
-        }
 
-        if (emptyCells.isNotEmpty()) {
-            val randomIndex = Random.nextInt(0, emptyCells.size)
-            val randomCell = emptyCells[randomIndex]
-            currentCell = randomCell
-            build(currentCell.row, currentCell.col, ROAD)
-            neighborsWithDirections = getNeighborsWithDirections(currentCell.row, currentCell.col, false)
-            generate()
-        } else {
-            return
-        }
     }
 
     private fun build(x: Int, y: Int, action: Int) {
@@ -126,10 +130,10 @@ class Maze (
 
     private fun getNeighborsWithDirections(x: Int, y: Int, includeWalls: Boolean): Map<String, Cell> {
         val neighbors = mutableMapOf<String, Cell>()
-        if (x - 1 >= 0 && (includeWalls || maze[x - 1][y] == NOTHING)) neighbors["Up"] = Cell(x - 1, y)
-        if (x + 1 < maze.size && (includeWalls || maze[x + 1][y] == NOTHING)) neighbors["Down"] = Cell(x + 1, y)
-        if (y - 1 >= 0 && (includeWalls || maze[x][y - 1] == NOTHING)) neighbors["Left"] = Cell(x, y - 1)
-        if (y + 1 < maze[0].size && (includeWalls || maze[x][y + 1] == NOTHING)) neighbors["Right"] = Cell(x, y + 1)
+        if (x - 1 >= 0 && (includeWalls || maze[x - 1][y] == NOTHING)) neighbors[UP] = Cell(x - 1, y)
+        if (x + 1 < maze.size && (includeWalls || maze[x + 1][y] == NOTHING)) neighbors[DOWN] = Cell(x + 1, y)
+        if (y - 1 >= 0 && (includeWalls || maze[x][y - 1] == NOTHING)) neighbors[LEFT] = Cell(x, y - 1)
+        if (y + 1 < maze[0].size && (includeWalls || maze[x][y + 1] == NOTHING)) neighbors[RIGHT] = Cell(x, y + 1)
         return neighbors
     }
 
